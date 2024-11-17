@@ -1,7 +1,6 @@
 package org.example;
 
 import org.apache.lucene.analysis.ro.RomanianAnalyzer;
-import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
@@ -9,15 +8,10 @@ import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
-import org.apache.poi.ss.formula.functions.T;
 import org.apache.tika.Tika;
 import org.apache.tika.exception.TikaException;
-import ucar.ma2.Index;
 import java.text.Normalizer;
-import java.util.regex.Pattern;
-import org.apache.lucene.analysis.ro.RomanianAnalyzer;
 import org.apache.lucene.analysis.CharArraySet;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -30,27 +24,30 @@ public class Indexer {
     private static  Tika tika;
     private final Directory indexDirectory;
     private IndexWriter indexWriter;
+    private static final String stopwords_path = "stopwords.txt";
 
-    public Indexer(String indexDirPath, String stopwordsPath) throws IOException {
-        // Load stopwords and create an analyzer with them
-        RomanianAnalyzer analyzer = get_romanian_analyzer_with_stopwords(stopwordsPath);
+    public Indexer(String indexDirPath) throws IOException {
+        //crate the analyzer
+        RomanianAnalyzer analyzer = get_romanian_analyzer_with_stopwords();
 
-        // Initialize the index directory and writer
+        //initialize the index directory
         indexDirectory = FSDirectory.open(Paths.get(indexDirPath));
         IndexWriterConfig config = new IndexWriterConfig(analyzer);
         indexWriter = new IndexWriter(indexDirectory, config);
-
         tika = new Tika();
+    }
+    private RomanianAnalyzer get_romanian_analyzer_with_stopwords() throws IOException {
+        List<String> stopwordsList = Files.readAllLines(Paths.get(stopwords_path));
+        CharArraySet stopwordsSet = new CharArraySet(stopwordsList, true);
+        return new RomanianAnalyzer(stopwordsSet);
     }
 
     public void set_index_directory(String documentsDirPath) throws IOException{
 
         File folder = new File(documentsDirPath);
-
         if (!folder.isDirectory()){
             throw new IllegalArgumentException("This path is not a directory: " + documentsDirPath);
         }
-
         for(File file : folder.listFiles()){
             if(file.isFile() && (file.getName().endsWith(".txt") || file.getName().endsWith(".pdf") || file.getName().endsWith(".docx") || file.getName().endsWith(".doc"))) {
                 String content_document = extract_content(file);
@@ -84,11 +81,5 @@ public class Indexer {
             return null;
         return Normalizer.normalize(text, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     }
-    public static RomanianAnalyzer get_romanian_analyzer_with_stopwords(String stopwords_path) throws IOException {
-        List<String> stopwordsList = Files.readAllLines(Paths.get(stopwords_path));
-        CharArraySet stopwordsSet = new CharArraySet(stopwordsList, true);
-        return new RomanianAnalyzer(stopwordsSet);
-    }
-
 
 }
